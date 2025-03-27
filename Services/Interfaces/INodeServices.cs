@@ -57,13 +57,24 @@
         /// This method updates the node's state to "Leader" and allows it to propose new states and coordinate the system's consensus process.
         /// </summary>
         public void BecomeLeader();
-
+        /// <summary>
+        /// Simulates the failiure of the current node.
+        /// </summary>
         public void SimulateFail();
-
+        /// <summary>
+        /// Start the election process to select a new leader.
+        /// </summary>
         public void StartElection();
-
+        /// <summary>
+        /// Handles a vote request from a candidate in the Raft algorithm.
+        /// </summary>
+        /// <param name="term">The term of the candidate requesting the vote.</param>
+        /// <param name="candidateId">The unique identifier of the candidate requesting the vote.</param>
         public void ReceiveVoteRequest(int term, string candidateId);
-
+        /// <summary>
+        /// Sends a vote response to a candidate in the Raft algorithm.
+        /// </summary>
+        /// <param name="candidateId">he unique identifier of the candidate requesting the vote.</param>
         public void SendVote(string candidateId);
 
     }

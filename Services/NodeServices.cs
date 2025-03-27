@@ -74,7 +74,7 @@ namespace Distributed_System_Simulation.Services
         /// <param name="message">The message received from another node, which can be logged or processed accordingly.</param>
         public void ReceiveMessage(string message)
         {
-            _messages.Add(message);
+            if(!_isFailed) _messages.Add(message);
         }
         /// <summary>
         /// Adds a neighboring node to the current node's list of neighbors, 
@@ -106,6 +106,10 @@ namespace Distributed_System_Simulation.Services
             return _messages; // Suponiendo que el log está contenido en los mensajes
         }
 
+        /// <summary>
+        /// Sets the current node as the leader of the system. 
+        /// This method updates the node's state to "Leader" and allows it to propose new states and coordinate the system's consensus process.
+        /// </summary>
         public void BecomeLeader()
         {
             if (_isFailed)
@@ -117,8 +121,12 @@ namespace Distributed_System_Simulation.Services
             _state = NodeState.Leader;
             _votesReceived = 0;  // Reset vote count on becoming leader
             _currentTerm++;
-            _messages.Add($"Node {NodeId} has become the leader for term {_currentTerm}.");
+            _messages.Add($"Node {NodeId} has become the leader.");
+            _networkService.BroadcastLogEntry($"Node {NodeId} has become the leader.");
+            _messages.Add($"Node {NodeId} has become the leader.");
+            _networkService.BroadcastLogEntry($"Node {NodeId} has become the leader for term {_currentTerm}.");
         }
+
         /// <summary>
         /// Handles the reception of a state proposal from another node. 
         /// It processes the incoming state and decides if it should update the node's state based on the consensus rules.
@@ -135,8 +143,12 @@ namespace Distributed_System_Simulation.Services
             _messages.Add($"State proposal: {state}");
         }
 
+        /// <summary>
+        /// Start the election process to select a new leader.
+        /// </summary>
         public void StartElection()
         {
+            if(_isFailed) return;
             _state = NodeState.Candidate;
             _currentTerm++;
             _votesReceived = 1; // Vote for itself
@@ -149,8 +161,15 @@ namespace Distributed_System_Simulation.Services
             }
         }
 
+        /// <summary>
+        /// Handles a vote request from a candidate in the Raft algorithm.
+        /// </summary>
+        /// <param name="term">The term of the candidate requesting the vote.</param>
+        /// <param name="candidateId">The unique identifier of the candidate requesting the vote.</param>
         public void ReceiveVoteRequest(int term, string candidateId)
         {
+            if(_isFailed) return;
+
             if (term > _currentTerm)
             {
                 _currentTerm = term;
@@ -166,17 +185,29 @@ namespace Distributed_System_Simulation.Services
             }
         }
 
+        /// <summary>
+        /// Sends a vote response to a candidate in the Raft algorithm.
+        /// </summary>
+        /// <param name="candidateId">he unique identifier of the candidate requesting the vote.</param>
         public void SendVote(string candidateId)
         {
             _messages.Add($"Node {NodeId} has voted for {candidateId} in term {_currentTerm}.");
             _networkService.BroadcastVote(candidateId, _currentTerm);
         }
 
+        /// <summary>
+        /// Simulates a network partition by disconnecting the node from a list of other nodes, 
+        /// preventing communication between them. This can be used to test how the system behaves when certain nodes are isolated from the network.
+        /// </summary>
+        /// <param name="partitionedNodes">A list of INodeServices nodes that will be isolated from the current node, simulating a network partition.</param>
         public void SimulatePartition(List<INodeServices> partitionedNodes)
         {
             _neighbors.RemoveAll(n => partitionedNodes.Contains(n));
         }
 
+        /// <summary>
+        /// Simulates the failiure of the current node.
+        /// </summary>
         public void SimulateFail()
         {
             _isFailed = true;

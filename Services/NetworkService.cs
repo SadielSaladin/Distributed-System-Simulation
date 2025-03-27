@@ -8,13 +8,20 @@ namespace Distributed_System_Simulation.Services
     /// </summary>
     public class NetworkService : INetworkService
     {
-       
 
+        /// <summary>
+        /// nodes in the network
+        /// </summary>
         private List<INodeServices> _nodes;
+        /// <summary>
+        /// votes for the candidates in the network
+        /// </summary>
+        private Dictionary<string, int> _votes;
 
         public NetworkService()
         {
             _nodes = new List<INodeServices>();
+            _votes = new Dictionary<string, int>();
         }
 
         /// <summary>
@@ -37,22 +44,41 @@ namespace Distributed_System_Simulation.Services
                 node.ReceiveMessage(logEntry);
             }
         }
+
+        /// <summary>
+        /// Registers a vote for a candidate in the Raft algorithm and determines if they have won the election.
+        /// </summary>
+        /// <param name="candidateId">The unique identifier of the candidate receiving the vote.</param>
+        /// <param name="term">The current election term.</param>
         public void BroadcastVote(string candidateId, int term)
         {
-            foreach (var node in _nodes)
+            if (!_votes.ContainsKey(candidateId))
             {
-                node.ReceiveVoteRequest(term, candidateId);
+                _votes[candidateId] = 0;
+            }
+            _votes[candidateId]++;
+
+            int majority = _nodes.Count / 2 + 1;
+            if (_votes[candidateId] >= majority)
+            {
+                var leaderNode = _nodes.FirstOrDefault(n => (n as NodeServices).NodeId == candidateId);
+                if (leaderNode != null)
+                {
+                    (leaderNode as NodeServices).BecomeLeader();
+                }
             }
         }
 
+        /// <summary>
+        /// Initiates a new leader election in the Raft algorithm.
+        /// Selects the first available node to start an election.
+        /// </summary>
         public void SelectNewLeader()
         {
-            // Solo se selecciona un líder si no hay uno actual
             var availableNodes = _nodes.Where(n => !(n as NodeServices)._isFailed).ToList();
-            if (availableNodes.Count > 0)
+            if (availableNodes.Any())
             {
-                var leaderCandidate = availableNodes.First();
-                (leaderCandidate as NodeServices).BecomeLeader();
+                availableNodes.First().StartElection();
             }
             else
             {
@@ -60,14 +86,5 @@ namespace Distributed_System_Simulation.Services
             }
         }
 
-        public void HandleElectionTimeout()
-        {
-            // Si el líder no está disponible, se inicia una nueva elección
-            var candidate = _nodes.FirstOrDefault(n => (n as NodeServices)._state == NodeState.Follower);
-            if (candidate != null)
-            {
-                (candidate as NodeServices).StartElection();
-            }
-        }
     }
 }

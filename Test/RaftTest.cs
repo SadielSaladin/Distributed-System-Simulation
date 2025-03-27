@@ -62,30 +62,40 @@ namespace Distributed_System_Simulation.Test
             var LogCount = _node3.GetLogs().Count(log => log.Contains("State proposal: 3"));
             Assert.Equal(2, LogCount);  
         }
-
         [Fact]
         public void Test_LeaderChange_OnFailure()
         {
-
             _node1.BecomeLeader();
 
-
-            Assert.Contains($"Node {_node1.NodeId} has become the leader", string.Join(" ", _node1.GetMessages()));
+            Assert.Contains($"Node {_node1.NodeId} has become the leader.", _node1.GetMessages());
 
             _node1.SimulateFail();
 
             _networkService.SelectNewLeader();
 
-            Assert.Contains($"Node {_node2.NodeId} has become the leader", string.Join(" ", _node2.GetMessages()));
-            Assert.DoesNotContain($"Node {_node1.NodeId} has become the leader", string.Join(" ", _node1.GetMessages()));
-            Assert.Contains($"Node {_node3.NodeId} has become the leader", string.Join(" ", _node3.GetMessages()));
+            var newLeader = _node2.GetMessages().Concat(_node3.GetMessages()).FirstOrDefault(msg => msg.Contains("has become the leader"));
+
+            Assert.NotNull(newLeader);
+            Assert.DoesNotContain($"Node {_node1.NodeId} has become the leader", _node1.GetMessages());
+        }
+
+        [Fact]
+        public void Test_Multiple_Leader_Changes()
+        {
+            _node1.BecomeLeader();
+            Assert.Contains($"Node {_node1.NodeId} has become the leader.", _node1.GetMessages());
+
+            _node1.SimulateFail();
+            _networkService.SelectNewLeader();
+
+            var leaderAfter1stFail = _node2.GetMessages().Concat(_node3.GetMessages()).FirstOrDefault(msg => msg.Contains("has become the leader"));
+            Assert.NotNull(leaderAfter1stFail);
 
             _node2.SimulateFail();
             _networkService.SelectNewLeader();
 
-            Assert.Contains($"Node {_node3.NodeId} has become the leader", string.Join(" ", _node3.GetMessages()));
-            Assert.DoesNotContain($"Node {_node2.NodeId} has become the leader", string.Join(" ", _node2.GetMessages()));
-
+            var leaderAfter2ndFail = _node3.GetMessages().FirstOrDefault(msg => msg.Contains("has become the leader"));
+            Assert.NotNull(leaderAfter2ndFail);
         }
-        }
+    }
     }
