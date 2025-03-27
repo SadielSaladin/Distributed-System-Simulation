@@ -5,6 +5,7 @@
     /// </summary>
     public interface INodeServices
     {
+        public bool _isFailed { get;}
         /// <summary>
         /// Node identifier
         /// </summary>
@@ -56,5 +57,14 @@
         /// This method updates the node's state to "Leader" and allows it to propose new states and coordinate the system's consensus process.
         /// </summary>
         public void BecomeLeader();
+
+        public void SimulateFail();
+
+        public void StartElection();
+
+        public void ReceiveVoteRequest(int term, string candidateId);
+
+        public void SendVote(string candidateId);
+
     }
 }

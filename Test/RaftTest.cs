@@ -62,5 +62,30 @@ namespace Distributed_System_Simulation.Test
             var LogCount = _node3.GetLogs().Count(log => log.Contains("State proposal: 3"));
             Assert.Equal(2, LogCount);  
         }
+
+        [Fact]
+        public void Test_LeaderChange_OnFailure()
+        {
+
+            _node1.BecomeLeader();
+
+
+            Assert.Contains($"Node {_node1.NodeId} has become the leader", string.Join(" ", _node1.GetMessages()));
+
+            _node1.SimulateFail();
+
+            _networkService.SelectNewLeader();
+
+            Assert.Contains($"Node {_node2.NodeId} has become the leader", string.Join(" ", _node2.GetMessages()));
+            Assert.DoesNotContain($"Node {_node1.NodeId} has become the leader", string.Join(" ", _node1.GetMessages()));
+            Assert.Contains($"Node {_node3.NodeId} has become the leader", string.Join(" ", _node3.GetMessages()));
+
+            _node2.SimulateFail();
+            _networkService.SelectNewLeader();
+
+            Assert.Contains($"Node {_node3.NodeId} has become the leader", string.Join(" ", _node3.GetMessages()));
+            Assert.DoesNotContain($"Node {_node2.NodeId} has become the leader", string.Join(" ", _node2.GetMessages()));
+
+        }
+        }
     }
-}

@@ -9,11 +9,17 @@ namespace Distributed_System_Simulation.Services
     {
 
         public string NodeId { get; private set; }
-        private NodeState _state;
+        public bool _isFailed { get; private set; }
+
+        public NodeState _state;
         private int _proposedState;
+        private int _currentTerm;
+        private int _votesReceived;
         private List<string> _messages;
         private List<INodeServices> _neighbors;
         private INetworkService _networkService;
+
+
 
         public NodeServices(INetworkService networkService)
         {
@@ -23,6 +29,9 @@ namespace Distributed_System_Simulation.Services
             _messages = new List<string>();
             _neighbors = new List<INodeServices>();
             _networkService = networkService;
+            _isFailed = false;
+            _votesReceived = 0;
+            _proposedState = 0;
         }
 
         /// <summary>
@@ -31,6 +40,12 @@ namespace Distributed_System_Simulation.Services
         /// <param name="state">the proposed state that the node is suggesting to the system.</param>
         public void ProposeState(int state)
         {
+            if (_isFailed)
+            {
+                _messages.Add($"Node {NodeId} cannot propose a state because it has failed.");
+                return;
+            }
+
             if (_state == NodeState.Leader)
             {
                 if (state > _proposedState)
@@ -93,7 +108,16 @@ namespace Distributed_System_Simulation.Services
 
         public void BecomeLeader()
         {
+            if (_isFailed)
+            {
+                _messages.Add($"Node {NodeId} cannot become leader because it has failed.");
+                return;
+            }
+
             _state = NodeState.Leader;
+            _votesReceived = 0;  // Reset vote count on becoming leader
+            _currentTerm++;
+            _messages.Add($"Node {NodeId} has become the leader for term {_currentTerm}.");
         }
         /// <summary>
         /// Handles the reception of a state proposal from another node. 
@@ -102,12 +126,62 @@ namespace Distributed_System_Simulation.Services
         /// <param name="state">The state proposed by another node that is received by the current node.</param>
         public void ReceiveStateProposal(int state)
         {
-            _messages.Add($"State proposal: {state}");
+            if (_isFailed)
+            {
+                _messages.Add($"Node {NodeId} cannot receive state proposals because it has failed.");
+                return;
+            }
+
+            _messages.Add($"State proposal: {state}");
+        }
+
+        public void StartElection()
+        {
+            _state = NodeState.Candidate;
+            _currentTerm++;
+            _votesReceived = 1; // Vote for itself
+            _messages.Add($"Node {NodeId} is starting an election for term {_currentTerm}.");
+
+            // Request votes from all neighbors
+            foreach (var neighbor in _neighbors)
+            {
+                neighbor.ReceiveVoteRequest(_currentTerm, NodeId);
+            }
+        }
+
+        public void ReceiveVoteRequest(int term, string candidateId)
+        {
+            if (term > _currentTerm)
+            {
+                _currentTerm = term;
+                _state = NodeState.Follower; // Convert to follower if the candidate's term is greater
+                _votesReceived = 0;
+                _messages.Add($"Node {NodeId} is now a follower (term {_currentTerm}) due to vote request from {candidateId}.");
+                // Vote for the candidate
+                SendVote(candidateId);
+            }
+            else if (term == _currentTerm && _state == NodeState.Follower)
+            {
+                SendVote(candidateId);
+            }
+        }
+
+        public void SendVote(string candidateId)
+        {
+            _messages.Add($"Node {NodeId} has voted for {candidateId} in term {_currentTerm}.");
+            _networkService.BroadcastVote(candidateId, _currentTerm);
         }
 
         public void SimulatePartition(List<INodeServices> partitionedNodes)
         {
             _neighbors.RemoveAll(n => partitionedNodes.Contains(n));
+        }
+
+        public void SimulateFail()
+        {
+            _isFailed = true;
+            _messages.Add($"Node {NodeId} has failed.");
+            _state = NodeState.Follower;
         }
     }
 }

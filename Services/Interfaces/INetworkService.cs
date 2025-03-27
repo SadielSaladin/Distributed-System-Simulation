@@ -16,5 +16,9 @@
         /// </summary>
         /// <param name="logEntry">Message to be broadcasted to all nodes</param>
         void BroadcastLogEntry(string logEntry);
+
+        public void BroadcastVote(string candidateId, int term);
+
+        public void SelectNewLeader();
     }
 }
