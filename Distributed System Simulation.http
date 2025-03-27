@@ -1,0 +1,6 @@
+@Distributed_System_Simulation_HostAddress = http://localhost:5126
+
+GET {{Distributed_System_Simulation_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
